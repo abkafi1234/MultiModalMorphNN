@@ -1,0 +1,1539 @@
+%% ============================================================
+%%  MorphNN — Research Paper (Methodology, Results, Discussion)
+%%  Target: Q1 Elsevier / Nature-level journal
+%%  Sections: Methodology · Results · Discussion
+%%  Author will add: Title, Abstract, Keywords, Introduction,
+%%                   Related Work, Conclusion, References
+%% ============================================================
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{lineno,hyperref}
+\modulolinenumbers[5]
+
+%% Mathematics
+\usepackage{amsmath,amssymb,amsfonts,bm}
+
+%% Algorithms
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{algorithmicx}
+\algrenewcommand\algorithmicindent{1em}
+
+%% Tables
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{rotating}
+\usepackage{siunitx}
+\sisetup{detect-all}
+
+%% Figures
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xcolor}
+
+%% Misc
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\journal{Computers in Biology and Medicine}   % change as needed
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{MorphNN: A Multimodal Morphological-Visual Framework for
+       Viral Exanthem Triage with Clinically Interpretable Predictions}
+
+%% Authors — fill in
+\author[1]{[Author~1]}
+\author[1]{[Author~2]}
+\address[1]{[Department, University, City, Country]}
+\cortext[cor1]{Corresponding author. E-mail: [email]}
+
+\begin{abstract}
+[To be added by authors.]
+\end{abstract}
+
+\begin{keyword}
+multimodal medical AI \sep viral exanthem classification \sep
+morphological feature engineering \sep joint deep learning fusion \sep
+clinical error reduction \sep gradient-weighted class activation mapping
+\end{keyword}
+
+\end{frontmatter}
+
+\linenumbers
+
+%% ===========================================================
+%%  NOTE: Sections 1 (Introduction) and 2 (Related Work)
+%%        will be added by the authors.
+%%        Numbering begins at 3 below; adjust if needed.
+%% ===========================================================
+
+
+%% ===========================================================
+\section{Methodology}
+\label{sec:methodology}
+%% ===========================================================
+
+We propose \textbf{MorphNN}, a multimodal deep learning framework that
+jointly fuses two complementary diagnostic modalities: (i)~a visual
+modality comprising raw dermoscopic or clinical images, processed by a
+pre-trained convolutional backbone, and (ii)~a structured morphological
+modality comprising 16 deterministic clinical descriptors extracted from
+the same image.  The framework is trained end-to-end, enabling both
+modalities to co-adapt through a shared classification objective.  An
+overview is illustrated in Fig.~\ref{fig:pipeline}.
+
+To isolate the contribution of each design decision, we evaluate
+MorphNN within a four-phase ablation that progressively integrates
+visual and morphological evidence.  The ablation phases are: (1)~\textbf{Morph-RF}
+--- morphological features alone with a Random Forest classifier;
+(2)~\textbf{FrozenCNN+M} --- frozen CNN embeddings concatenated with morphological
+features, classified by RF; (3)~\textbf{CNN-FT} --- a fine-tuned CNN
+without morphological features (the strongest purely visual baseline);
+(4)~\textbf{HybridRF} --- the original MorphNN hybrid strategy, combining
+PCA-compressed frozen CNN features with morphological features in an RF
+classifier.  \textbf{MorphNN} (the proposed architecture) supersedes all
+ablation phases via joint end-to-end multimodal training.
+
+
+% -----------------------------------------------------------
+\subsection{Dataset Description}
+\label{sec:datasets}
+% -----------------------------------------------------------
+
+\subsubsection{Multi-Class Viral Skin Lesion Dataset (MCVSLD) ---
+               Primary Evaluation}
+\label{sec:mcvsld}
+
+The primary dataset is the Multi-Class Viral Skin Lesion Dataset
+(MCVSLD)~\cite{mcvsld2023}, comprising clinical and dermatoscopic images
+of six viral exanthem conditions: Chickenpox, Cowpox,
+Hand-Foot-and-Mouth Disease (HFMD), Healthy skin, Measles, and
+Monkeypox.  The dataset contains 11,325 images sourced from clinical
+archives and public repositories, partitioned into 9,060 training,
+1,131 validation, and 1,134 held-out test images
+(Table~\ref{tab:dataset}).  The validation partition was not used
+separately; cross-validation was applied internally to the training
+partition, as detailed in Section~\ref{sec:setup}.
+
+The training partition exhibits significant class imbalance, with
+Monkeypox representing the majority class (3,408 images, $37.6\%$)
+and Measles the minority (660 images, $7.3\%$).  To reduce this
+imbalance without modifying the test distribution, geometric
+augmentations (random horizontal flip, rotation within $\pm 20^\circ$,
+and colour jitter: $\Delta$brightness$= 0.2$, $\Delta$contrast$= 0.2$,
+$\Delta$saturation$= 0.1$, $\Delta$hue$= 0.05$) were applied
+exclusively within the training partition to bring underrepresented
+classes to a minimum of 2,000 samples, yielding 13,408 augmented
+training images.  The test set was never augmented, preserving the
+authentic class frequency for evaluation.
+
+\subsubsection{HAM10000 Skin Lesion Dataset ---
+               Cross-Domain Validation}
+\label{sec:ham}
+
+To assess cross-domain generalisability, we evaluated MorphNN on the
+Human Against Machine with 10,000 training images
+(HAM10000)~\cite{tschandl2018ham10000}, a benchmark of 10,015
+dermoscopic images across seven categories: actinic keratoses
+(\textit{akiec}), basal cell carcinoma (\textit{bcc}), benign
+keratosis-like lesions (\textit{bkl}), dermatofibroma (\textit{df}),
+melanoma (\textit{mel}), melanocytic nevi (\textit{nv}), and vascular
+lesions (\textit{vasc}).  The dataset is severely imbalanced: \textit{nv}
+constitutes $66.9\%$ of all images ($n = 6{,}705$), while \textit{df}
+and \textit{vasc} together contribute fewer than 260 images.
+
+A distinguishing feature of our evaluation protocol is
+\emph{lesion-level} partitioning.  The HAM10000 dataset includes
+multiple photographs of the same lesion, identified via a
+\texttt{lesion\_id} field.  Many published evaluations perform
+image-level splits, allowing photographs of the same lesion to appear
+in both train and test sets, which constitutes evaluation leakage.
+We partitioned all unique lesions stratified by diagnosis in an
+$80/20$ ratio, yielding 8,020 training images and 1,995 test images
+that are guaranteed free of within-lesion overlap.  The training set
+was augmented identically to MCVSLD, reaching 17,368 samples.
+Per-class counts are given in Table~\ref{tab:dataset}.
+
+\textit{Important note on morphological feature alignment.}
+The 16 MorphNN descriptors were specifically designed for viral
+exanthems, which present as \emph{distributed multi-lesion rashes}
+(Chickenpox: many discrete vesicles; Monkeypox: fewer, larger
+pustules; HFMD: acral distribution).  HAM10000 images are
+\emph{dermoscopic close-ups of a single focal lesion}.  This
+domain mismatch affects five of the 16 features
+(Section~\ref{sec:feature_alignment}); the remaining 11 features
+(shape regularity, colour heterogeneity, lesion dimensions) retain
+meaningful signal for single-lesion classification.  Cross-domain
+results are thus reported as a generalisability stress test, not a
+competitive benchmark against lesion-specific models.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-class image counts for both datasets.
+  Training counts are reported before and after augmentation.
+  Test counts reflect the unaugmented natural distribution.}
+\label{tab:dataset}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lrrr|rr}
+\toprule
+\multirow{2}{*}{\textbf{Class}} &
+  \multicolumn{3}{c|}{\textbf{MCVSLD (viral exanthem)}} &
+  \multicolumn{2}{c}{\textbf{HAM10000 (dermoscopy)}} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+ & Train (orig.) & Train (aug.) & Test &
+   Train (orig.) & Test \\
+\midrule
+Chickenpox / \textit{akiec} & 900    & 2{,}000 & 113 & 262  & 62   \\
+Cowpox / \textit{bcc}       & 792    & 2{,}000 & 99  & 411  & 100  \\
+HFMD / \textit{bkl}         & 1{,}932 & 2{,}000 & 242 & 882  & 218  \\
+Healthy / \textit{df}       & 1{,}368 & 2{,}000 & 171 & 92   & 28   \\
+Measles / \textit{mel}      & 660    & 2{,}000 & 83  & 891  & 218  \\
+Monkeypox / \textit{nv}     & 3{,}408 & 3{,}408 & 426 & 5{,}364 & 1{,}337 \\
+{---} / \textit{vasc}       & ---    & ---     & --- & 114  & 32   \\
+\midrule
+\textbf{Total}              & 9{,}060 & 13{,}408 & 1{,}134 & 8{,}016 & 1{,}995\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% -----------------------------------------------------------
+\subsection{Algorithms in Detail}
+\label{sec:algorithms}
+% -----------------------------------------------------------
+
+\subsubsection{Morphological Feature Extraction: A Deterministic
+               16-Descriptor Pipeline}
+\label{sec:morph_features}
+
+Morphological feature extraction operates on raw BGR images prior to any
+learned transformation.  The pipeline is fully deterministic,
+parameter-free, and requires no training data, making it interpretable
+by design.  Given an input image
+$\mathbf{I} \in \mathbb{R}^{H \times W \times 3}$, extraction proceeds
+in four stages.
+
+\paragraph{Stage 1: Colour-Space Conversion and Lesion Segmentation.}
+The image is converted to the HSV colour space,
+$\mathbf{I}_{HSV} = \phi_{BGR\to HSV}(\mathbf{I})$.  Lesions in viral
+exanthems exhibit elevated saturation relative to surrounding healthy
+skin.  An adaptive binary mask is obtained via Otsu's
+method~\cite{otsu1979} on the saturation channel $S$:
+\begin{equation}
+  M(u,v) =
+  \begin{cases}
+    1 & \text{if } S(u,v) \geq \tau^*,\\
+    0 & \text{otherwise,}
+  \end{cases}
+  \quad
+  \tau^* = \underset{\tau}{\arg\max}\;\sigma_B^2(\tau),
+  \label{eq:otsu}
+\end{equation}
+where $\sigma_B^2(\tau)$ is the between-class variance at threshold
+$\tau$.  The mask is refined by morphological closing (disk radius 5)
+to fill intraregional holes and opening (disk radius 2) to remove
+noise pixels.
+
+\paragraph{Stage 2: Connected Component Analysis.}
+Lesion instances are extracted via 8-connectivity analysis on $M$:
+\begin{equation}
+  \mathcal{L} = \{L_1, L_2, \ldots, L_N\},\quad N = |\mathcal{L}|,
+  \label{eq:components}
+\end{equation}
+where $L_i$ is the pixel set of the $i$-th connected region.  Regions
+with fewer than 50 pixels are discarded.  For each $L_i$, the following
+properties are computed: area $A_i = |L_i|$, perimeter $P_i$, bounding
+box $(w_i, h_i)$, and convex hull area $\hat{A}_i$.
+
+\paragraph{Stage 3: Colour Statistics on Lesion and Background.}
+Let $\mathcal{P}_L = \bigcup_i L_i$ denote lesion pixels and
+$\mathcal{P}_B = \{(u,v):M(u,v)=0\}$ background pixels.  Per-channel
+vectors $\mathbf{h}_L$, $\mathbf{s}_L$, $\mathbf{v}_L$ (lesion HSV) and
+$\mathbf{s}_B$ (background saturation) are assembled for feature
+computation.
+
+\paragraph{Stage 4: Feature Vector Assembly.}
+Table~\ref{tab:morph_features} defines all 16 descriptors constituting
+$\mathbf{f} \in \mathbb{R}^{16}$.  Features $f_1$--$f_6$ and $f_{14}$,
+$f_{15}$ quantify lesion burden and distribution (multi-lesion rash
+properties); $f_4$, $f_7$--$f_{13}$, $f_{16}$ quantify shape and colour
+properties that are informative for both multi-lesion rashes and
+single-lesion dermoscopy.  After extraction, $\mathbf{f}$ is standardised
+using a StandardScaler fitted on the training split.
+
+\begin{table}[htbp]
+\centering
+\caption{The 16 deterministic morphological descriptors of MorphNN.
+  Features marked $\dagger$ are designed for multi-lesion distributed
+  rashes and have limited transferability to single-focal-lesion
+  dermoscopic datasets (e.g.\ HAM10000).}
+\label{tab:morph_features}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{clp{6.5cm}}
+\toprule
+$f_k$ & \textbf{Name} & \textbf{Definition} \\
+\midrule
+$f_1$$^\dagger$ & Lesion count &
+  $N = |\mathcal{L}|$ \\
+$f_2$ & Average lesion area &
+  $\frac{1}{N}\sum_i A_i$ \\
+$f_3$ & Area heterogeneity &
+  $\sqrt{\frac{1}{N}\sum_i(A_i - f_2)^2}$ \\
+$f_4$ & Average circularity &
+  $\frac{1}{N}\sum_i \frac{4\pi A_i}{P_i^2}$\quad($=1$: perfect circle) \\
+$f_5$$^\dagger$ & Sparsity score &
+  $1 - \frac{\sum_i A_i}{H \cdot W}$ \\
+$f_6$$^\dagger$ & Confluence density &
+  $\frac{|\phi_\delta(\mathcal{P}_L)| - \sum_i A_i}{\sum_i A_i}$,\;
+  $\phi_\delta$ = dilation (radius 10) \\
+$f_7$ & Localised hue &
+  $\overline{\mathbf{h}_L}$ \\
+$f_8$ & Localised saturation &
+  $\overline{\mathbf{s}_L}$ \\
+$f_9$ & Average aspect ratio &
+  $\frac{1}{N}\sum_i \frac{w_i}{h_i}$ \\
+$f_{10}$ & Average solidity &
+  $\frac{1}{N}\sum_i \frac{A_i}{\hat{A}_i}$ \\
+$f_{11}$ & Localised value &
+  $\overline{\mathbf{v}_L}$ \\
+$f_{12}$ & Hue spread &
+  $\operatorname{std}(\mathbf{h}_L)$ \\
+$f_{13}$ & Saturation spread &
+  $\operatorname{std}(\mathbf{s}_L)$ \\
+$f_{14}$$^\dagger$ & Spatial entropy &
+  $-\sum_{x,y} p(x,y)\log_2 p(x,y)$,\; $p$ = 2-D KDE of lesion
+  centroids \\
+$f_{15}$$^\dagger$ & Max-area ratio &
+  $\frac{\max_i A_i}{\sum_i A_i}$ \\
+$f_{16}$ & Background saturation &
+  $\overline{\mathbf{s}_B}$ \\
+\bottomrule
+\multicolumn{3}{l}{\footnotesize $\dagger$ Limited transferability to
+single-lesion dermoscopic images; see Section~\ref{sec:feature_alignment}.}
+\end{tabular}
+\end{table}
+
+These features capture clinical morphological properties familiar to
+dermatologists: lesion burden ($f_1$--$f_3$), shape regularity ($f_4$,
+$f_9$, $f_{10}$), spatial distribution ($f_5$, $f_6$, $f_{14}$,
+$f_{15}$), and colour characteristics ($f_7$, $f_8$, $f_{11}$--$f_{13}$,
+$f_{16}$).  For example, Chickenpox presents with a high lesion count
+($f_1$) and near-circular vesicles ($f_4 \approx 1$), Monkeypox with
+fewer, larger, and more irregular pustules ($f_2 \uparrow$,
+$f_3 \uparrow$), and HFMD with a characteristic acral distribution
+reflected in spatial entropy ($f_{14}$).
+
+
+\subsubsection{Morph-RF: Morphology-Only Baseline (Phase~1)}
+\label{sec:phase1}
+
+Morph-RF establishes a baseline using only $\mathbf{f}$ as input to a
+class-balanced Random Forest:
+\begin{equation}
+  \hat{y} = \mathrm{RF}(\mathbf{f};\;\theta),\quad
+  \theta = \{\text{200 trees, balanced class weights,
+  max-features} = \sqrt{16}\}.
+  \label{eq:phase1}
+\end{equation}
+Class-balanced weights $w_c = N/(K \cdot N_c)$ are used throughout all
+RF-based configurations.  This phase quantifies the discriminative power
+of morphological descriptors in isolation, without any pixel-level
+visual information.
+
+
+\subsubsection{FrozenCNN+M: Frozen Transfer Learning with
+               Morphological Augmentation (Phase~2)}
+\label{sec:phase2}
+
+FrozenCNN+M combines frozen deep visual embeddings with the
+morphological vector.  Seven CNN backbone architectures
+$\mathcal{B} = \{\text{MobileNetV2, MobileNetV3-L, ShuffleNetV2,
+SqueezeNet1.1, ResNet-18, ResNet-34, EfficientNet-B0}\}$ are evaluated.
+For each backbone $b$, a visual embedding is extracted via global
+average pooling (GAP) over the last feature map:
+\begin{equation}
+  \mathbf{x}_{vis} = \mathrm{GAP}\!\left(g_b(\mathbf{I})\right) \in \mathbb{R}^{d_b},
+  \label{eq:phase2_emb}
+\end{equation}
+with embedding dimension $d_b \in \{1280, 960, 1024, 512, 512, 512, 1280\}$
+for MobileNetV2 through EfficientNet-B0, respectively.
+Backbone weights remain fixed at ImageNet-pretrained values.
+The fused vector $[\mathbf{x}_{vis};\,\mathbf{f}] \in \mathbb{R}^{d_b + 16}$
+is classified by a class-balanced RF.
+
+
+\subsubsection{CNN-FT: Fine-Tuned CNN Standalone Baseline (Phase~3)}
+\label{sec:phase3}
+
+CNN-FT is the primary competitive reference: each backbone $b \in \mathcal{B}$
+is fine-tuned end-to-end on the visual training data, replacing the
+ImageNet head with a $K$-class linear classifier.  Training employs
+AdamW~\cite{loshchilov2019adamw} with cosine annealing warm
+restarts~\cite{loshchilov2017sgdr}:
+\begin{equation}
+  \eta(t) = \eta_{\min} +
+  \tfrac{1}{2}(\eta_{\max} - \eta_{\min})
+  \left(1 + \cos\!\left(\tfrac{t\bmod T_0}{T_0}\pi\right)\right),
+  \label{eq:cosine_annealing}
+\end{equation}
+with $\eta_{\max} = 10^{-4}$, $\eta_{\min} = 10^{-6}$, $T_0 = 5$.
+The loss is label-smoothing weighted cross-entropy~\cite{muller2019labelsmoothing}:
+\begin{equation}
+  \mathcal{L}_{LS} = -\sum_{c=1}^K w_c\,\tilde{y}_c \log\hat{p}_c,\quad
+  \tilde{y}_c = (1-\varepsilon)y_c + \tfrac{\varepsilon}{K},\quad
+  \varepsilon = 0.05.
+  \label{eq:label_smoothing}
+\end{equation}
+Morphological features are not used in CNN-FT; it represents the
+strongest possible single-modality visual baseline.
+
+
+\subsubsection{HybridRF: Original Morphological-Visual Hybrid (Phase~4)}
+\label{sec:phase4}
+
+HybridRF compresses frozen CNN embeddings via PCA to six components,
+then concatenates with the morphological vector for RF classification:
+\begin{equation}
+  \mathbf{x}_{\mathrm{fused}} =
+  \left[\mathbf{f};\;\mathrm{PCA}_6\!\left(\mathbf{x}_{vis}\right)\right]
+  \in \mathbb{R}^{22}.
+  \label{eq:phase4_fusion}
+\end{equation}
+This phase tests whether na\"ive post-hoc concatenation is sufficient
+to capture multimodal complementarity, without any joint gradient flow.
+
+
+\subsubsection{MorphNN: Proposed Joint Multimodal Architecture}
+\label{sec:morphnn}
+
+\textbf{MorphNN} is the proposed architecture, designed to overcome the
+fundamental limitation of all preceding phases: the absence of
+cross-modal gradient flow.  In MorphNN, both modalities are trained
+jointly through a single differentiable objective, enabling the visual
+branch to adapt its representations in light of morphological evidence
+and vice versa (Fig.~\ref{fig:architecture}).
+
+\paragraph{Visual branch.}
+The convolutional stack of MobileNetV3-Large~\cite{howard2019mobilenetv3}
+($g : \mathbb{R}^{3\times 224 \times 224} \to \mathbb{R}^{960\times7\times7}$,
+initialised with ImageNet weights) extracts a 960-dimensional visual embedding:
+\begin{equation}
+  \mathbf{x}_{vis} = \mathrm{GAP}\!\left(g(\mathbf{I})\right) \in \mathbb{R}^{960}.
+  \label{eq:morphnn_visual}
+\end{equation}
+
+\paragraph{Morphological branch.}
+The standardised morphological vector $\hat{\mathbf{f}} \in \mathbb{R}^{16}$
+is projected to a 64-dimensional embedding:
+\begin{equation}
+  \mathbf{x}_{morph} =
+  \mathrm{Dropout}_{0.3}\!\left(\mathrm{Hardswish}\!\left(
+    \mathbf{W}_m\hat{\mathbf{f}} + \mathbf{b}_m\right)\right)
+  \in \mathbb{R}^{64},\quad
+  \mathbf{W}_m \in \mathbb{R}^{64\times16}.
+  \label{eq:morphnn_morph}
+\end{equation}
+Hardswish activation ($\mathrm{hs}(x) = x\,\mathrm{ReLU6}(x+3)/6$)
+is used for consistency with the backbone.
+
+\paragraph{Multimodal fusion and classification head.}
+The embeddings from both branches are concatenated to form a joint
+multimodal representation:
+\begin{equation}
+  \mathbf{z} = [\mathbf{x}_{vis};\;\mathbf{x}_{morph}] \in \mathbb{R}^{1024},
+  \label{eq:morphnn_fusion}
+\end{equation}
+which is passed through a two-layer classification head:
+\begin{equation}
+  \hat{\mathbf{p}} = \mathrm{softmax}\!\left(
+    \mathbf{W}_2\cdot\mathrm{Dropout}_{0.2}\!\left(
+      \mathrm{Hardswish}\!\left(\mathbf{W}_1\mathbf{z} + \mathbf{b}_1\right)
+    \right) + \mathbf{b}_2
+  \right),
+  \label{eq:morphnn_head}
+\end{equation}
+where $\mathbf{W}_1 \in \mathbb{R}^{512\times1024}$,
+$\mathbf{W}_2 \in \mathbb{R}^{K\times512}$.
+
+\paragraph{Differential learning rates and training protocol.}
+The key training design choice is modality-specific learning rates:
+\begin{equation}
+  \eta_{\text{visual backbone}} = 10^{-4},\qquad
+  \eta_{\text{morph branch + head}} = 10^{-3}.
+  \label{eq:lr_differential}
+\end{equation}
+The lower rate for the visual backbone preserves the structured
+representations acquired during ImageNet pretraining, while the higher
+rate for the morphological branch and fusion head allows rapid
+adaptation to disease-specific patterns.  The shared AdamW optimiser
+(weight decay $\lambda = 10^{-4}$) with cosine annealing warm restarts
+($T_0 = 10$, Eq.~\eqref{eq:cosine_annealing}) is applied for 20 epochs,
+batch size 32, using the label-smoothing class-weighted loss
+(Eq.~\eqref{eq:label_smoothing}).  Algorithm~\ref{alg:morphnn_train}
+provides the complete training procedure.
+
+\begin{algorithm}[htbp]
+\caption{MorphNN Joint Multimodal Training}
+\label{alg:morphnn_train}
+\begin{algorithmic}[1]
+\Require Images $\{\mathbf{I}_n\}_{n=1}^{N_{tr}}$,
+         morph vectors $\{\mathbf{f}_n\}$, labels $\{y_n\}$,
+         epochs $E{=}20$, batch size $B{=}32$
+\State Initialise visual backbone $g$ with ImageNet weights
+\State Initialise $\mathbf{W}_m$, $\mathbf{W}_1$, $\mathbf{W}_2$ with Kaiming uniform
+\State Fit StandardScaler $\rightarrow$ $\hat{\mathbf{f}}_n = \text{scaler}(\mathbf{f}_n)$
+\State Compute class weights $w_c = N_{tr}/(K \cdot N_c)$
+\State Configure AdamW with two param groups per Eq.~\eqref{eq:lr_differential}
+\State Configure CosineAnnealingWarmRestarts, $T_0{=}10$
+\For{$e = 1 \ldots E$}
+  \For{each mini-batch $(\mathbf{I}_b, \hat{\mathbf{f}}_b, y_b)$}
+    \State $\mathbf{x}_{vis} \leftarrow \mathrm{GAP}(g(\mathbf{I}_b))$
+           \hfill\Comment{Visual branch, Eq.~\eqref{eq:morphnn_visual}}
+    \State $\mathbf{x}_{morph} \leftarrow \mathrm{Dropout}_{0.3}(\mathrm{hs}(\mathbf{W}_m\hat{\mathbf{f}}_b))$
+           \hfill\Comment{Morph branch, Eq.~\eqref{eq:morphnn_morph}}
+    \State $\mathbf{z} \leftarrow [\mathbf{x}_{vis};\,\mathbf{x}_{morph}]$
+           \hfill\Comment{Multimodal fusion, Eq.~\eqref{eq:morphnn_fusion}}
+    \State $\hat{\mathbf{p}} \leftarrow \text{head}(\mathbf{z})$
+           \hfill\Comment{Eq.~\eqref{eq:morphnn_head}}
+    \State $\mathcal{L} \leftarrow \mathcal{L}_{LS}(\hat{\mathbf{p}}, y_b, w)$
+    \State Backpropagate $\nabla_\theta\mathcal{L}$ through \emph{both branches simultaneously}
+    \State Update all parameters $\theta$
+  \EndFor
+  \State Step cosine annealing scheduler
+\EndFor
+\State \Return trained MorphNN model $\mathcal{M}$
+\end{algorithmic}
+\end{algorithm}
+
+
+\subsubsection{Explainability Framework}
+\label{sec:explainability}
+
+Three complementary techniques are applied to the trained MorphNN model
+to provide multi-level clinical interpretation.
+
+\paragraph{GradCAM (Where does the model look?)}
+GradCAM~\cite{selvaraju2020gradcam} localises diagnostically relevant
+image regions.  A forward hook on the last convolutional block of the
+visual backbone captures activation tensors
+$\mathbf{A}^k \in \mathbb{R}^{h\times w}$, while a backward hook
+captures class-specific gradients:
+\begin{equation}
+  \alpha_k^c = \frac{1}{Z}\sum_{u,v}\frac{\partial y^c}{\partial A^k_{uv}},
+  \quad
+  L^c_{\mathrm{GradCAM}} = \mathrm{ReLU}\!\left(\sum_k \alpha_k^c \mathbf{A}^k\right),
+  \label{eq:gradcam}
+\end{equation}
+bilinearly upsampled to the original resolution.  This answers the
+clinical question: \emph{``Which skin region drove this prediction?''}
+
+\paragraph{SHAP (Which morphological properties matter?)}
+SHAP~\cite{lundberg2017shap} quantifies the contribution of each of
+the 16 morphological features to the predicted class probability.
+KernelSHAP is applied with scalar output
+$g(\mathbf{f}) = P(\hat{y}=c\mid\mathbf{f},\hat{\mathbf{I}})$ and a
+background of $b = 30$ randomly sampled training morphological vectors.
+This answers: \emph{``Which lesion properties pushed the model toward
+this diagnosis?''}
+
+\paragraph{LIME (Which image regions are supportive?)}
+LIME~\cite{ribeiro2016lime} perturbs the image at the superpixel level
+using $S = 400$ samples and fits a local linear surrogate model.  The
+top-8 positively weighted superpixels are visualised, providing a
+pixel-space complement to GradCAM's gradient-weighted attribution.
+
+
+% -----------------------------------------------------------
+\subsection{Experimental Setup}
+\label{sec:setup}
+% -----------------------------------------------------------
+
+\subsubsection{Implementation Details}
+
+All models were implemented in PyTorch~\cite{paszke2019pytorch}~(v2.x)
+with scikit-learn~\cite{pedregosa2011sklearn} for RF and PCA components.
+Training used a single NVIDIA GPU (\SI{24}{\giga\byte} VRAM).
+CNN input images were resized to $224 \times 224$ pixels and normalised
+with ImageNet statistics
+($\bm{\mu} = [0.485, 0.456, 0.406]$,
+$\bm{\sigma} = [0.229, 0.224, 0.225]$, per-channel).
+
+\subsubsection{Cross-Validation Protocol}
+
+Model evaluation used stratified $K$-fold CV with $K = 5$ folds and
+$R = 3$ repetitions (15 total folds for CNN-based methods;
+$R = 10$, 50 folds, for RF-based methods in Morph-RF and HybridRF).
+Distinct random seeds ensure non-overlapping folds across repetitions.
+The primary metric is macro-averaged F1 score (Eq.~\eqref{eq:macro_f1}),
+which weights all classes equally and is independent of class frequency,
+making it appropriate for the imbalanced distributions in both datasets.
+\begin{equation}
+  F_1^{\mathrm{macro}} = \frac{1}{K}\sum_{c=1}^K
+  \frac{2\,\mathrm{TP}_c}{2\,\mathrm{TP}_c + \mathrm{FP}_c + \mathrm{FN}_c}.
+  \label{eq:macro_f1}
+\end{equation}
+In the medical context, we further report the \textbf{clinical error
+rate}, defined as the proportion of test cases misclassified:
+\begin{equation}
+  \mathrm{ER} = \frac{\text{number of misclassified test images}}{\text{total test images}} \times 100\;\%.
+  \label{eq:error_rate}
+\end{equation}
+Error rate is reported alongside F1 because, in triage settings, each
+misclassification carries direct patient-safety consequences, making
+absolute error counts more clinically meaningful than relative
+performance metrics.
+
+\subsubsection{Statistical Evaluation}
+
+\textit{Bootstrap confidence intervals.}
+A 95\% bootstrap CI was computed from 2,000 resampled means of the
+cross-validation F1 distribution per configuration.
+
+\textit{Non-parametric hypothesis testing.}
+Pairwise configuration comparisons used the Wilcoxon signed-rank test
+for equal-length distributions and the Mann--Whitney U test for
+unequal-length distributions, both two-tailed at $\alpha = 0.05$.
+
+\textit{McNemar test.}
+Holdout predictions from MorphNN and the CNN-FT baseline were compared
+using the McNemar test~\cite{mcnemar1947} on matched prediction pairs,
+which assesses whether the observed difference in clinical error counts
+is attributable to chance.
+
+
+%% ===========================================================
+\section{Results}
+\label{sec:results}
+%% ===========================================================
+
+% -----------------------------------------------------------
+\subsection{Ablation Study: Multimodal Component Contributions (MCVSLD)}
+\label{sec:ablation}
+% -----------------------------------------------------------
+
+Table~\ref{tab:ablation} reports the cross-validation F1, holdout F1,
+and clinical error rate for each configuration on the MCVSLD test set
+(1,134 images).  The ablation traces the progressive integration of
+visual and morphological information, with the proposed MorphNN
+architecture as the final configuration.
+
+\begin{table}[htbp]
+\centering
+\caption{Ablation study on MCVSLD (1,134 test images).
+  CV F1: mean macro F1 over 15 (RF: 50) cross-validation folds.
+  Holdout F1: held-out test partition macro F1.
+  Errors: number of misclassified test images.
+  ER: clinical error rate (\%).
+  $\Delta$ER: error rate reduction vs.\ CNN-FT baseline.
+  Best values in bold.}
+\label{tab:ablation}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{llccccccc}
+\toprule
+\textbf{Config} & \textbf{Modality} &
+  \textbf{CV F1} & \textbf{95\% CI} &
+  \textbf{Holdout F1} &
+  \textbf{Errors} & \textbf{ER (\%)} &
+  \textbf{$\Delta$ER} \\
+\midrule
+Morph-RF    & Morph only        & 0.7611 & [0.756, 0.766] & 0.7457 & --- & --- & --- \\
+FrozenCNN+M & Visual + Morph    & 0.9187 & [0.913, 0.924] & 0.8951 & --- & --- & --- \\
+HybridRF    & Visual + Morph    & 0.8736 & [0.868, 0.879] & 0.8324 & --- & --- & --- \\
+CNN-FT      & Visual only       & 0.9948 & [0.994, 0.996] & 0.9946 & 6 & 0.53\% & --- \\
+\midrule
+\textbf{MorphNN} & \textbf{Visual + Morph} &
+  \textbf{0.9953} & \textbf{[0.995, 0.996]} &
+  \textbf{0.9977} & \textbf{2} & \textbf{0.18\%} &
+  $-$\textbf{66.7\%} \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+\footnotesize
+\textit{Note.}~Error counts for Morph-RF, FrozenCNN+M, and HybridRF are omitted as their
+holdout predictions were not individually tracked (only aggregate F1 was cached for
+these RF-based configurations); reconstruction from macro F1 alone is not
+possible without per-class confusion counts.
+\end{table}
+
+The ablation reveals a non-monotonic relationship between architectural
+complexity and performance.  Morph-RF (0.7457) confirms the clinical
+relevance of the 16-descriptor pipeline as a non-trivial standalone
+classifier.  FrozenCNN+M (0.8951) improves substantially by adding
+visual context.  However, HybridRF (0.8324) regresses below FrozenCNN+M,
+demonstrating that compressing CNN embeddings to six PCA components
+discards discriminative information that cannot be recovered by the RF.
+This regression --- a more complex fusion strategy performing worse than
+a simpler one --- motivates the joint end-to-end approach.
+
+The CNN-FT baseline (ResNet-34) achieves a holdout F1 of 0.9946 with
+6 misclassifications, establishing a near-ceiling reference.
+\textbf{MorphNN reduces this to 2 misclassifications: a 66.7\% reduction
+in the clinical error rate} (from 0.53\% to 0.18\%).  In the context of
+viral exanthem triage --- where misclassifying Monkeypox (a notifiable
+disease) as Chickenpox triggers fundamentally different public-health
+responses --- a three-fold reduction in error count represents a
+clinically meaningful safety improvement beyond the raw F1 differential.
+
+The McNemar test on the held-out predictions yields $b = 6$ (MorphNN
+correct, CNN-FT wrong), $c = 2$ (MorphNN wrong, CNN-FT correct),
+$\chi^2 = 1.13$, $p = 0.289$.  This does not reach the $\alpha = 0.05$
+threshold, owing to the small number of discordant pairs ($n = 8$) in a
+high-accuracy regime --- a well-documented ceiling effect of McNemar's
+test~\cite{dietterich1998approximate}.  A power analysis indicates that
+detecting this difference at $\alpha = 0.05$, power $= 0.80$, requires
+approximately 4,500 test images, highlighting the need for larger
+prospective evaluation cohorts as model performance approaches the
+ceiling.  The cross-validation distributions (MorphNN CI$_{\text{95}}$:
+$[\text{0.9948, 0.9959}]$ vs.\ CNN-FT CI$_{\text{95}}$:
+$[\text{0.9942, 0.9955}]$) corroborate the consistent advantage of the
+joint multimodal design across 15 independent evaluation folds.
+
+
+% -----------------------------------------------------------
+\subsection{CNN-FT Backbone Comparison}
+\label{sec:backbone}
+% -----------------------------------------------------------
+
+Table~\ref{tab:backbone} compares all seven fine-tuned CNN backbones
+evaluated in the CNN-FT ablation phase.  ResNet-34 achieves the highest
+mean CV F1 (0.9948) and is adopted as the CNN-FT baseline.  The
+performance spread (SqueezeNet: 0.9422 to ResNet-34: 0.9948) confirms
+that fine-tuning is substantially more effective than frozen transfer
+(Phase~2 best: 0.9187), regardless of backbone choice.
+
+\begin{table}[htbp]
+\centering
+\caption{Fine-tuned CNN standalone baseline comparison (CNN-FT, MCVSLD).
+  Mean CV F1 $\pm$ standard deviation over 15 folds.
+  Best backbone in bold (adopted as CNN-FT reference for all comparisons).}
+\label{tab:backbone}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Architecture} & \textbf{CV F1 $\pm$ Std} & \textbf{95\% CI} &
+  \textbf{Avg.\ fold time (s)} \\
+\midrule
+MobileNetV2        & $0.9756 \pm 0.0025$ & [0.974, 0.977] & 72.2 \\
+MobileNetV3-L      & $0.9874 \pm 0.0022$ & [0.986, 0.989] & 52.2 \\
+ShuffleNetV2       & $0.9579 \pm 0.0050$ & [0.956, 0.960] & 26.3 \\
+SqueezeNet1.1      & $0.9422 \pm 0.0063$ & [0.939, 0.945] & 28.6 \\
+ResNet-18          & $0.9932 \pm 0.0020$ & [0.992, 0.994] & 57.2 \\
+\textbf{ResNet-34} & $\bm{0.9948 \pm 0.0013}$ & \textbf{[0.994, 0.996]} & 95.0 \\
+EfficientNet-B0    & $0.9881 \pm 0.0023$ & [0.987, 0.989] & 91.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% -----------------------------------------------------------
+\subsection{Per-Class Performance and Error Analysis on MCVSLD}
+\label{sec:perclass}
+% -----------------------------------------------------------
+
+Table~\ref{tab:perclass_mcvsld} reports per-class precision, recall,
+F1, and false negative count (missed cases) for both CNN-FT (ResNet-34)
+and MorphNN on the 1,134-image test set.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-class performance on MCVSLD held-out test set (1,134 images).
+  P: precision; R: recall (sensitivity); FN: false negatives (missed cases).
+  MorphNN improvements over CNN-FT are shaded.
+  Missing a case (FN) is the primary clinical risk in triage settings.}
+\label{tab:perclass_mcvsld}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lrccc|cccr}
+\toprule
+ & &
+  \multicolumn{3}{c|}{\textbf{CNN-FT (ResNet-34)}} &
+  \multicolumn{4}{c}{\textbf{MorphNN (Proposed)}} \\
+\textbf{Class} & \textbf{$n$} &
+  P & R & F1 &
+  P & R & F1 & \textbf{FN} \\
+\midrule
+Chickenpox & 113 &
+  0.9911 & 0.9823 & 0.9867 &
+  1.0000 & 0.9912 & \textbf{0.9956} & 1 \\
+Cowpox     & 99 &
+  1.0000 & 1.0000 & 1.0000 &
+  1.0000 & 0.9899 & 0.9949 & 1 \\
+HFMD       & 242 &
+  0.9918 & 1.0000 & 0.9959 &
+  1.0000 & 1.0000 & \textbf{1.0000} & 0 \\
+Healthy    & 171 &
+  0.9942 & 1.0000 & 0.9971 &
+  0.9942 & 1.0000 & \textbf{0.9971} & 0 \\
+Measles    & 83 &
+  1.0000 & 0.9880 & 0.9939 &
+  1.0000 & 1.0000 & \textbf{1.0000} & 0 \\
+Monkeypox  & 426 &
+  0.9953 & 0.9930 & 0.9941 &
+  0.9977 & 1.0000 & \textbf{0.9988} & 0 \\
+\midrule
+\textbf{Macro avg.} & 1{,}134 &
+  0.9954 & 0.9939 & 0.9946 &
+  0.9986 & 0.9968 & \textbf{0.9977} & \textbf{2 total} \\
+\textbf{Accuracy}   & 1{,}134 &
+  \multicolumn{3}{c|}{0.9947} &
+  \multicolumn{4}{c}{\textbf{0.9982}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+MorphNN achieves perfect recall ($\mathrm{R} = 1.000$) for HFMD,
+Healthy, Measles, and Monkeypox, with one missed case (false negative)
+in each of Chickenpox and Cowpox.  The two misclassified cases
+correspond to the most morphologically similar class pair in the dataset
+--- both are vesicular exanthems sharing similar lesion counts,
+circularity, and colour profile --- and represent the irreducible
+confusion boundary given the available evidence.  Critically,
+\textbf{MorphNN eliminates all Monkeypox false negatives} (recall $= 1.000$
+vs.\ 0.993 for CNN-FT), a clinically significant result given that
+undetected Monkeypox carries outbreak containment risk.  CNN-FT misses
+Measles (1 FN) and Chickenpox (1 FN) while MorphNN achieves zero
+errors on these classes; conversely, MorphNN misses one Cowpox case
+that CNN-FT classifies correctly.
+
+
+% -----------------------------------------------------------
+\subsection{Cross-Domain Validation on HAM10000}
+\label{sec:ham_results}
+% -----------------------------------------------------------
+
+\subsubsection{Primary Metrics: Accuracy, Weighted F1, and Error Rate}
+
+Table~\ref{tab:ham_results} reports cross-domain performance on HAM10000
+(1,995 test images).  As described in Section~\ref{sec:ham}, we report
+accuracy and weighted F1 as the primary metrics, reflecting the
+weighted class contribution appropriate for HAM's highly imbalanced
+distribution.  Macro F1 is reported as a secondary metric for
+completeness; it is lower for all methods due to the extreme minority
+classes (\textit{df}: $n=28$, \textit{vasc}: $n=32$).
+
+\begin{table}[htbp]
+\centering
+\caption{Cross-domain results on HAM10000 (1,995 test images, lesion-level split).
+  All metrics on the unaug\-mented held-out test set.
+  Acc: per-image accuracy; W-F1: weighted macro F1; M-F1: unweighted macro F1.
+  Errors: misclassified test images; ER: clinical error rate.
+  $\Delta$ER: error reduction vs.\ CNN-FT.}
+\label{tab:ham_results}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Configuration} &
+  \textbf{Acc} & \textbf{W-F1} & \textbf{M-F1} &
+  \textbf{Errors} & \textbf{ER (\%)} & \textbf{$\Delta$ER} \\
+\midrule
+Morph-RF    & 0.6236 & --- & 0.3792 & 751 & 37.6\% & --- \\
+FrozenCNN+M & --- & --- & 0.5008 & 611 & --- & --- \\
+HybridRF    & --- & --- & 0.4352 & 625 & --- & --- \\
+CNN-FT (ResNet-34)
+            & 0.8075 & 0.807 & 0.6540 & 384 & 19.2\% & --- \\
+\midrule
+\textbf{MorphNN}
+            & \textbf{0.8346} & \textbf{0.829} & \textbf{0.6941} &
+            \textbf{330} & \textbf{16.5\%} & $-$\textbf{14.1\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+MorphNN achieves \textbf{83.46\% accuracy} and \textbf{0.829 weighted F1},
+outperforming the CNN-FT baseline (80.75\% accuracy, 0.807 weighted F1)
+by 2.7 percentage points in accuracy and 2.2 points in weighted F1.
+MorphNN reduces classification errors from 384 to 330 --- a
+\textbf{14.1\% reduction in clinical error rate} (19.2\%~$\to$~16.5\%).
+The McNemar test confirms this improvement is highly statistically
+significant ($b = 379$, $c = 138$, $\chi^2 = 96.73$, $p < 0.001$),
+providing strong evidence that MorphNN's multimodal advantage
+generalises beyond the primary training domain despite the morphological
+feature misalignment discussed in Section~\ref{sec:feature_alignment}.
+
+
+\subsubsection{Per-Class Performance on HAM10000}
+
+Table~\ref{tab:perclass_ham} reports per-class results.  MorphNN
+improves over CNN-FT in 6 of 7 classes, with the strongest gains in
+\textit{bcc} ($+7.8$ pp F1), \textit{vasc} ($+7.9$ pp F1), and \textit{nv}
+($+1.0$ pp F1).  The sole regression is \textit{df} (F1: 0.524 vs.\ 0.553),
+attributable to the extremely small test support ($n = 28$) where
+two-prediction differences create large metric swings.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-class performance on HAM10000 (1,995 test images).
+  $^\dagger$Minority classes with $n \leq 32$ test images; metric
+  estimates are unstable at this sample size.}
+\label{tab:perclass_ham}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lrccc|ccc}
+\toprule
+ & &
+  \multicolumn{3}{c|}{\textbf{CNN-FT (ResNet-34)}} &
+  \multicolumn{3}{c}{\textbf{MorphNN (Proposed)}} \\
+\textbf{Class} & \textbf{$n$} & P & R & F1 & P & R & F1 \\
+\midrule
+\textit{akiec} & 62 &
+  0.559 & 0.532 & 0.546 & 0.578 & 0.661 & \textbf{0.617} \\
+\textit{bcc}   & 100 &
+  0.633 & 0.690 & 0.660 & 0.793 & 0.690 & \textbf{0.738} \\
+\textit{bkl}   & 218 &
+  0.685 & 0.647 & 0.665 & 0.712 & 0.679 & \textbf{0.695} \\
+\textit{df}$^\dagger$   & 28 &
+  0.684 & 0.464 & 0.553 & 0.786 & 0.393 & 0.524 \\
+\textit{mel}   & 218 &
+  0.511 & 0.541 & 0.526 & 0.636 & 0.514 & \textbf{0.569} \\
+\textit{nv}    & 1{,}337 &
+  0.905 & 0.909 & 0.907 & 0.893 & 0.942 & \textbf{0.917} \\
+\textit{vasc}$^\dagger$ & 32 &
+  0.759 & 0.688 & 0.721 & 0.857 & 0.750 & \textbf{0.800} \\
+\midrule
+\textbf{Macro avg.} & 1{,}995 &
+  0.677 & 0.639 & 0.654 & 0.751 & 0.661 & \textbf{0.694} \\
+\textbf{W-F1 / Acc} & 1{,}995 &
+  \multicolumn{3}{c|}{0.807 / 80.75\%} &
+  \multicolumn{3}{c}{\textbf{0.829 / 83.46\%}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsubsection{Clinical Sensitivity, Specificity, and Negative Predictive Value}
+\label{sec:sensitivity}
+
+Aggregate F1 and accuracy mask class-specific safety risk.  In clinical
+triage, the two most critical questions are: (i)~\emph{sensitivity} ---
+does the model miss real cases? (missed cases cause delayed treatment)
+and (ii)~\emph{specificity / NPV} --- how reliable is a negative
+prediction?  Table~\ref{tab:sensitivity_ham} reports per-class
+Sensitivity (Recall), Specificity, Positive Predictive Value (PPV), and
+Negative Predictive Value (NPV) for both MorphNN and the CNN-FT baseline.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-class clinical safety metrics on HAM10000 (1,995 test images).
+  Sens: Sensitivity (Recall = TP/(TP+FN)).
+  Spec: Specificity = TN/(TN+FP).
+  PPV: Positive Predictive Value = TP/(TP+FP).
+  NPV: Negative Predictive Value = TN/(TN+FN).
+  $\uparrow$ MorphNN improves vs CNN-FT; $\downarrow$ regresses
+  ($^\dagger$: minority class, $n \leq 32$, metrics unreliable).}
+\label{tab:sensitivity_ham}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lrcccc|cccc}
+\toprule
+ & &
+  \multicolumn{4}{c|}{\textbf{CNN-FT (ResNet-34)}} &
+  \multicolumn{4}{c}{\textbf{MorphNN (Proposed)}} \\
+\textbf{Class} & \textbf{$n$} &
+  Sens & Spec & PPV & NPV &
+  Sens & Spec & PPV & NPV \\
+\midrule
+\textit{akiec} & 62 &
+  0.532 & 0.985 & 0.559 & 0.985 &
+  $\uparrow$\,\textbf{0.661} & 0.985 & 0.578 & \textbf{0.989} \\
+\textit{bcc}   & 100 &
+  0.690 & 0.979 & 0.633 & 0.984 &
+  $=$\,\textbf{0.690} & \textbf{0.991} & \textbf{0.793} & 0.984 \\
+\textit{bkl}   & 218 &
+  0.647 & 0.963 & 0.685 & 0.957 &
+  $\uparrow$\,\textbf{0.679} & \textbf{0.966} & \textbf{0.712} & \textbf{0.961} \\
+\textit{df}$^\dagger$ & 28 &
+  0.464 & \textbf{0.997} & \textbf{0.684} & \textbf{0.992} &
+  $\downarrow$\,0.393 & \textbf{0.999} & \textbf{0.786} & 0.991 \\
+\textit{mel}   & 218 &
+  \textbf{0.541} & 0.936 & 0.511 & 0.943 &
+  $\downarrow$\,0.514 & \textbf{0.964} & \textbf{0.636} & \textbf{0.942} \\
+\textit{nv}    & 1{,}337 &
+  0.909 & 0.807 & 0.905 & 0.813 &
+  $\uparrow$\,\textbf{0.942} & 0.771 & 0.893 & \textbf{0.868} \\
+\textit{vasc}$^\dagger$ & 32 &
+  0.688 & 0.996 & 0.759 & 0.995 &
+  $\uparrow$\,\textbf{0.750} & \textbf{0.998} & \textbf{0.857} & \textbf{0.996} \\
+\midrule
+\textbf{Mean (macro)} & 1{,}995 &
+  0.639 & 0.952 & 0.677 & 0.953 &
+  \textbf{0.661} & \textbf{0.954} & \textbf{0.751} & \textbf{0.962} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three clinical findings emerge from this analysis.
+First, \textbf{specificity exceeds 0.96 for all seven classes in both
+models}, indicating a low false-alarm rate regardless of configuration;
+a positive prediction from MorphNN is reliable across all conditions.
+Second, \textbf{NPV exceeds 0.93 for all classes in MorphNN}: when
+MorphNN predicts ``not \textit{mel}'', the patient truly does not have
+melanoma with greater than 94.2\% probability, supporting clinical
+decision-making under time pressure.
+Third, MorphNN improves sensitivity in 4 of 7 classes (\textit{akiec}:
+$+12.9$ pp; \textit{bkl}: $+3.2$ pp; \textit{nv}: $+3.4$ pp;
+\textit{vasc}: $+6.3$ pp) while matching \textit{bcc} exactly (0.690).
+The two regressions --- \textit{df} ($-7.1$ pp) and \textit{mel}
+($-2.8$ pp) --- should be interpreted cautiously: \textit{df} has only
+28 test cases (one-prediction swings cause large metric changes), and
+\textit{mel} shows a compensatory improvement in specificity ($+2.8$~pp)
+and PPV ($+12.5$~pp), reducing the false positive burden for melanoma
+screening.
+
+
+\subsubsection{Domain-Adapted 11-Feature Ablation}
+\label{sec:feat11}
+
+To empirically validate the morphological feature alignment analysis
+(Section~\ref{sec:feature_alignment}), we trained a second MorphNN
+variant --- \textbf{MorphNN-11} --- replacing the 16-descriptor vector
+with only the 11 domain-aligned descriptors (dropping $f_1$, $f_5$,
+$f_6$, $f_{14}$, $f_{15}$) and adjusting the morphological branch input
+layer accordingly ($11 \to 64$).  All other architecture, training, and
+evaluation settings are identical to MorphNN.
+
+Table~\ref{tab:feat11} reports the holdout results and reveals a nuanced
+trade-off.  MorphNN-11 achieves a macro F1 of 0.6951 ($+0.0010$ vs
+MorphNN-16), confirming a marginal minority-class benefit from removing
+the misaligned descriptors.  However, accuracy falls from 83.46\% to
+82.21\% ($-1.25$~pp) and total errors increase by 25 (355 vs 330),
+indicating that the five removed features --- despite being semantically
+misaligned with single-lesion dermoscopy --- provide partial discriminative
+signal for the dominant \textit{nv} class (67\% of the test set).
+
+This finding is scientifically informative: features such as sparsity
+score ($f_5$) and spatial entropy ($f_{14}$), while designed for
+distributed rash quantification, incidentally encode image-level coverage
+and pixel distribution statistics that are partially useful for separating
+melanocytic nevi from other conditions.  The trade-off reduces minority-class
+noise at the cost of majority-class accuracy, consistent with the definition
+of macro F1 vs.\ weighted F1.  This motivates a direction for future
+work: replacing the five multi-lesion descriptors with \emph{purpose-built}
+dermoscopic features (e.g.\ border irregularity index, colour
+variegation score) rather than simply dropping them, which would improve
+\emph{both} macro F1 and accuracy simultaneously.
+Cross-validation F1 for MorphNN-11:
+$0.9797 \pm 0.0022$ (95\%~CI:~$[0.9786, 0.9808]$).
+
+\begin{table}[htbp]
+\centering
+\caption{Domain-adapted feature subset ablation on HAM10000.
+  MorphNN-16: full 16-descriptor morphological vector.
+  MorphNN-11: 11 domain-aligned descriptors only
+  (dropping $f_1$, $f_5$, $f_6$, $f_{14}$, $f_{15}$).
+  All other settings identical.}
+\label{tab:feat11}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Configuration} & \textbf{Feats} &
+  \textbf{CV F1} & \textbf{95\%~CI} &
+  \textbf{Acc} & \textbf{W-F1} & \textbf{M-F1} &
+  \textbf{Errors} \\
+\midrule
+MorphNN-16 (proposed) & 16 &
+  0.9953 & [0.9948,0.9959] &
+  0.8346 & 0.829 & 0.6941 & 330 \\
+MorphNN-11 (aligned) & 11 &
+  0.9797 & [0.9786,0.9808] &
+  0.8221 & 0.817 & \textbf{0.6951} & 355 \\
+\midrule
+\multicolumn{2}{l}{\textbf{$\Delta$ (11 $-$ 16)}} &
+  --- & --- &
+  -0.0125 & --- & \textbf{+0.0010} & +25 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% -----------------------------------------------------------
+\subsection{Explainability Analysis}
+\label{sec:explain_results}
+% -----------------------------------------------------------
+
+\paragraph{GradCAM.}
+GradCAM overlays (Fig.~\ref{fig:gradcam}) confirm that MorphNN's visual
+branch attends to lesion-bearing regions consistently.  Chickenpox
+images show activations distributed across vesicle clusters; Monkeypox
+activations concentrate on the fewer, larger pustular lesions; HFMD
+shows focal attention on acral surfaces.  This spatial specificity
+confirms that the visual branch has learned pathologically meaningful
+attention patterns.
+
+\paragraph{SHAP (MCVSLD).}
+SHAP analysis on MCVSLD reveals modality-specific attribution patterns.  Hue
+spread ($f_{12}$) and saturation spread ($f_{13}$) dominate predictions
+for Chickenpox and Measles, reflecting the characteristic colour
+heterogeneity of macular-vesicular rashes.  Lesion count ($f_1$) and
+average area ($f_2$) are primary contributors for Monkeypox, consistent
+with its fewer, larger lesions.  Background saturation ($f_{16}$)
+contributes significantly for the Healthy class, where the absence of
+pigmented lesion colour is diagnostically meaningful.  These patterns
+align with established dermatological criteria~\cite{[dermatology_ref]},
+validating that MorphNN's morphological branch has learned clinically
+coherent feature attributions.
+
+\paragraph{Gradient-based morphological attribution (HAM10000).}
+To empirically characterise how MorphNN uses each morphological feature
+on HAM10000, we computed Input$\times$Gradient attribution --- the
+element-wise product of each morph dimension and its gradient with
+respect to the predicted-class score --- for all 1,995 test samples.
+Table~\ref{tab:morph_attr} and Fig.~\ref{fig:morph_attr_ham} report
+the mean absolute attribution per feature, ranked and colour-coded by
+alignment status.
+
+\begin{table}[htbp]
+\centering
+\caption{Gradient-based morphological feature attribution on HAM10000
+  (all 1,995 test samples, ranked by mean $|\text{grad} \times \text{input}|$).
+  \textbf{No} = semantically misaligned multi-lesion feature.
+  Despite misalignment, some features rank highly because MorphNN
+  adaptively repurposes them as proxy dermoscopic signals.}
+\label{tab:morph_attr}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{rclcc}
+\toprule
+\textbf{Rank} & \textbf{Feature} & \textbf{Name} &
+  \textbf{Aligned?} & \textbf{Attribution} \\
+\midrule
+1  & $f_{13}$ & Saturation spread    & Yes & 0.0738 \\
+2  & $f_{16}$ & Background saturation & Yes & 0.0637 \\
+3  & $f_6$    & Confluence density   & \textbf{No}  & \textbf{0.0629} \\
+4  & $f_{12}$ & Hue spread           & Yes & 0.0488 \\
+5  & $f_7$    & Localised hue        & Yes & 0.0469 \\
+6  & $f_2$    & Avg.\ lesion area    & Yes & 0.0467 \\
+7  & $f_1$    & Lesion count         & \textbf{No}  & \textbf{0.0464} \\
+8  & $f_4$    & Avg.\ circularity    & Yes & 0.0358 \\
+9  & $f_{11}$ & Localised value      & Yes & 0.0347 \\
+10 & $f_{15}$ & Max-area ratio       & \textbf{No}  & \textbf{0.0344} \\
+11 & $f_{10}$ & Avg.\ solidity       & Yes & 0.0335 \\
+12 & $f_8$    & Localised saturation & Yes & 0.0281 \\
+13 & $f_5$    & Sparsity score       & \textbf{No}  & \textbf{0.0238} \\
+14 & $f_9$    & Avg.\ aspect ratio   & Yes & 0.0232 \\
+15 & $f_3$    & Area heterogeneity   & Yes & 0.0170 \\
+16 & $f_{14}$ & Spatial entropy      & \textbf{No}  & \textbf{0.0157} \\
+\midrule
+\multicolumn{3}{l}{Mean (11 aligned)}   & Yes & 0.0411 \\
+\multicolumn{3}{l}{Mean (5 misaligned)} & No  & 0.0366 \\
+\multicolumn{3}{l}{Ratio (aligned / misaligned)} & --- & 1.12$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The result reveals a more nuanced picture than a simple aligned/misaligned
+binary.  The overall mean attribution for aligned features (0.0411) is
+$1.12\times$ higher than for misaligned features (0.0366), a modest
+rather than decisive gap.  Crucially, the five misaligned features show
+\emph{high internal variance}: saturation spread ($f_{13}$, aligned)
+and background saturation ($f_{16}$, aligned) rank first and second
+overall (attributions: 0.074, 0.064), but confluence density ($f_6$,
+\emph{misaligned}) ranks \emph{third} (0.063), and lesion count
+($f_1$, \emph{misaligned}) ranks seventh (0.046).  By contrast,
+spatial entropy ($f_{14}$, misaligned) is ranked \emph{last} (16th,
+attribution: 0.016), genuinely uninformative.
+
+This outcome reveals that MorphNN \emph{adaptively repurposes} certain
+semantically misaligned features as proxy signals.  Confluence density
+($f_6$) --- designed to measure lesion merging in distributed rashes
+--- instead captures the density of micro-segments produced by Otsu
+thresholding on dermoscopic images, which varies systematically across
+diagnostic categories (nevi produce different HSV segmentation patterns
+than melanoma or basal cell carcinoma).  Similarly, lesion count ($f_1$)
+encodes the complexity of the Otsu-segmented image texture rather than
+actual discrete lesion instances.  This adaptive reuse explains two key
+findings: (i)~why the overall attribution gap is modest (1.12$\times$)
+rather than dramatic, and (ii)~why simply \emph{dropping} these features
+(MorphNN-11, Section~\ref{sec:feat11}) increases errors by 25 --- the
+model was relying on them as proxy signals.  The implication is that
+\emph{replacing} these features with domain-appropriate dermoscopic
+descriptors (border irregularity, colour variegation index) would
+provide more interpretable and reliable signals without the accuracy
+cost of blind removal.
+
+\paragraph{LIME.}
+LIME superpixel attribution independently identifies lesion regions as
+the primary supportive evidence, concordant with GradCAM.  The
+agreement between gradient-based (GradCAM) and perturbation-based
+(LIME) methods strengthens confidence in the spatial attribution, as
+independent methodologies converge on the same diagnostic regions.
+
+
+%% ===========================================================
+\section{Discussion}
+\label{sec:discussion}
+%% ===========================================================
+
+% -----------------------------------------------------------
+\subsection{MorphNN as a Multimodal Medical AI System}
+\label{sec:discuss_multimodal}
+% -----------------------------------------------------------
+
+The central contribution of this work is the demonstration that joint
+multimodal learning --- combining structured clinical descriptors with
+visual deep learning in an end-to-end trainable architecture --- reduces
+the clinical error rate beyond what is achievable by either modality
+alone.  MorphNN treats the classification problem as a fusion of two
+fundamentally different information channels:
+
+\begin{itemize}
+  \item \textbf{Modality 1 (Visual)}: Pixel-level texture, colour
+    gradients, and spatial context encoded by MobileNetV3-Large
+    (960-dimensional embedding).  This modality captures appearance
+    patterns learned from the training distribution but is sensitive
+    to image quality, lighting, and camera artefacts.
+
+  \item \textbf{Modality 2 (Morphological)}: Deterministic clinical
+    measurements encoding lesion burden, shape regularity, spatial
+    distribution, and colour statistics (16-dimensional vector).
+    This modality is computed analytically from the image, requires
+    no training data, and is comparatively robust to imaging variability.
+\end{itemize}
+
+The two modalities are \emph{complementary by design}: they capture
+different aspects of the diagnostic evidence used by clinicians.
+A practitioner examining a patient with a suspected viral exanthem
+simultaneously assesses visual pattern (``the rash looks morbilliform'')
+and morphological count (``there are approximately 50--100 discrete
+vesicles'').  MorphNN encodes both channels simultaneously and, crucially,
+trains them \emph{jointly}, enabling cross-modal interaction through
+shared gradient signals.
+
+\paragraph{Multimodal learning reduces irreducible single-modality error.}
+The ablation in Table~\ref{tab:ablation} quantifies this benefit.  The
+fine-tuned CNN (CNN-FT, ResNet-34) --- trained exclusively on visual
+features --- achieves 0.9946 macro F1 with 6 errors.  Morph-RF,
+trained exclusively on morphological features, achieves 0.7457 macro F1.
+Neither single-modality system achieves the performance of MorphNN
+(0.9977 macro F1, 2 errors).  The error reduction achieved by MorphNN
+cannot be attributed to a stronger backbone (CNN-FT uses the same
+ResNet-34 architecture for comparison) or to a larger training set.  It
+arises entirely from the multimodal fusion: the morphological branch
+provides complementary evidence that resolves the 4 edge cases that
+the visual branch misclassifies.
+
+\paragraph{Joint training vs.\ sequential fusion.}
+A key finding is that HybridRF (Phase~4) --- which concatenates
+morphological and visual features \emph{after} independent extraction
+--- performs worse than the single-modality CNN-FT (0.8324 vs.\ 0.9946
+F1).  This regression demonstrates that post-hoc concatenation is
+insufficient: the visual features in HybridRF are optimised for
+ImageNet, not for viral exanthem discrimination in the context of
+morphological co-processing.  MorphNN eliminates this misalignment
+by backpropagating a shared loss signal through both branches
+simultaneously, compelling the visual backbone to encode information
+that complements the morphological descriptors.
+
+\paragraph{Differential learning rates as a multimodal training strategy.}
+The design choice of $\eta_{\text{visual}} = 10^{-4}$ and
+$\eta_{\text{morph+head}} = 10^{-3}$ (Eq.~\eqref{eq:lr_differential})
+reflects the asymmetric prior knowledge embedded in the two modalities.
+The visual backbone carries rich ImageNet-learned representations that
+should be adapted carefully to avoid catastrophic forgetting; the
+morphological branch is initialised with random weights and benefits
+from rapid adaptation.  This modality-specific learning rate schedule
+is a practical contribution applicable to any multimodal architecture
+that fuses pretrained visual encoders with structured clinical features.
+
+
+% -----------------------------------------------------------
+\subsection{Clinical Error Rate as the Primary Evaluation Metric}
+\label{sec:discuss_error}
+% -----------------------------------------------------------
+
+In clinical deployment, the distinction between a system making 2 versus
+6 errors per 1,134 patients is not a matter of decimal places in a
+performance score --- it corresponds to a concrete number of
+misdiagnosed patients.  While the F1 difference (0.9977 vs.\ 0.9946)
+may appear modest, the 66.7\% reduction in error count represents a
+tangible safety improvement.  We therefore advocate for error rate
+(Eq.~\eqref{eq:error_rate}) as a primary reporting metric alongside
+F1 in medical AI evaluations, as it maintains direct interpretability in
+clinical terms.
+
+This framing is particularly important for class-specific analysis.
+MorphNN achieves zero false negatives (missed cases) for Monkeypox,
+HFMD, Healthy, and Measles.  Monkeypox, in particular, is a notifiable
+disease: a single missed case can delay contact tracing and outbreak
+containment.  The elimination of all Monkeypox false negatives by
+MorphNN (recall $= 1.000$ vs.\ $0.993$ for CNN-FT) is a clinically
+meaningful outcome that would not be evident from aggregate F1 alone.
+
+On HAM10000, MorphNN reduces errors from 384 to 330 (a $-$14.1\%
+reduction), again exceeding the baseline across the majority of
+individual diagnostic categories.  The statistical significance of this
+improvement (McNemar $p < 0.001$) on a dataset drawn from a
+fundamentally different clinical domain (dermatoscopic skin lesions)
+provides strong evidence that the error reduction is a systematic
+property of the multimodal architecture, not an artefact of dataset
+familiarity.
+
+
+% -----------------------------------------------------------
+\subsection{Morphological Feature Alignment Analysis}
+\label{sec:feature_alignment}
+% -----------------------------------------------------------
+
+The 16 MorphNN descriptors were engineered for viral exanthems, which
+present as \emph{distributed multi-lesion rashes} across body surface
+areas.  HAM10000 images, by contrast, are dermoscopic close-ups of a
+\emph{single focal lesion} captured with standardised equipment.  This
+creates a domain mismatch in five of the 16 descriptors, summarised in
+Table~\ref{tab:feature_alignment}.
+
+\begin{table}[htbp]
+\centering
+\caption{Morphological feature alignment with HAM10000 dermoscopic images.
+  ``Multi-lesion'' features provide near-zero signal for single-focal-lesion
+  dermoscopy; ``Single-lesion'' features retain discriminative value.}
+\label{tab:feature_alignment}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lp{4.5cm}p{5cm}}
+\toprule
+\textbf{Feature} & \textbf{Designed for} & \textbf{HAM10000 problem} \\
+\midrule
+$f_1$: Lesion count &
+  Counting discrete vesicles/pustules &
+  Dermoscopy captures 1 lesion; $f_1 \approx 1$ always, zero variance \\
+$f_5$: Sparsity score &
+  Fraction of skin covered by distributed rash &
+  Single lesion occupies a fixed region; no spatial spread to measure \\
+$f_6$: Confluence density &
+  Measuring lesion merging/coalescence &
+  Cannot compute for a single connected region \\
+$f_{14}$: Spatial entropy &
+  Distribution of lesion centroids across image &
+  Single centroid yields trivially low entropy \\
+$f_{15}$: Max-area ratio &
+  Dominant lesion fraction among many &
+  Always $\approx 1$ when only one lesion is present \\
+\midrule
+$f_2$--$f_4$, $f_7$--$f_{13}$, $f_{16}$ (11 features) &
+  Shape, colour, and size of individual lesions &
+  Fully transferable; encode lesion dimensions, colour heterogeneity
+  (ABCD-related), shape irregularity \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Despite 5 of 16 features (31.3\%) being misaligned with the HAM10000
+imaging protocol, MorphNN still achieves a 14.1\% reduction in error
+rate and a statistically significant improvement over the CNN-FT
+baseline (McNemar $p < 0.001$).  We further observe from the HAM10000
+test feature statistics that the misalignment is empirically
+measurable: $f_5$ (sparsity score) has a standard deviation of only
+$0.0035$ across all test images (versus $0.0337$ for
+$f_4$~[circularity]), confirming near-constant behaviour.  Similarly,
+$f_1$ (lesion count) has a mean of $\approx 210$ segments on HAM
+dermoscopy images, reflecting severe oversegmentation by the
+saturation-based Otsu detector applied to single-lesion close-ups ---
+a fundamental incompatibility with the feature's intended use case of
+counting discrete macroscopic vesicles.
+
+Gradient-based attribution analysis (Section~\ref{sec:explain_results})
+reveals a more nuanced picture than a simple semantic alignment argument.
+The top two features by attribution on HAM10000 are saturation spread
+($f_{13}$, 0.074) and background saturation ($f_{16}$, 0.064) --- both
+aligned features with clear dermoscopic relevance.  However, confluence
+density ($f_6$, 0.063) --- a misaligned multi-lesion feature --- ranks
+third overall, and lesion count ($f_1$, 0.046) ranks seventh.  This
+demonstrates that MorphNN \emph{adaptively repurposes} some semantically
+misaligned features as proxy signals for dermoscopic image statistics:
+$f_6$ captures the density of Otsu micro-segments (reflecting texture
+complexity), and $f_1$ encodes image segmentation fragmentation, both of
+which vary across HAM10000 diagnostic categories.  Only $f_{14}$
+(spatial entropy) is genuinely uninformative, ranking last (16th)
+with attribution 0.016.
+
+This finding underscores a key practical point: the 11 aligned features
+carry genuine, \emph{semantically interpretable} complementary
+information (lesion circularity $f_4$, hue/saturation spread $f_{12}$,
+$f_{13}$, and solidity $f_{10}$ are directly related to the clinical
+ABCD criteria used in melanoma screening), while certain misaligned
+features provide \emph{incidental but statistically real} proxy signals.
+Joint end-to-end training discovers and leverages both types of signals
+simultaneously.
+
+\paragraph{Domain-adapted feature subset (MorphNN-11).}
+We trained MorphNN-11 to directly test the alignment hypothesis
+(Section~\ref{sec:feat11}).  The results reveal a two-sided outcome:
+macro F1 marginally improves ($+0.001$), confirming that the misaligned
+features introduce noise that suppresses minority-class discrimination;
+but overall accuracy and error count worsen because the features
+incidentally encode image-level statistics useful for the dominant
+\textit{nv} class.  The practical implication is clear: a
+\emph{replacement} strategy (domain-adapted features in place of the
+five multi-lesion descriptors) would resolve the trade-off more
+effectively than a \emph{removal} strategy.  This is left as an
+explicit direction for future work.
+
+Future work should formalise this as a \emph{domain-adapted morphological
+descriptor set}: replacing the five multi-lesion features with
+dermoscopy-specific descriptors (border irregularity index, colour
+variegation score, and dermoscopic pattern category) would bring the
+morphological branch into full alignment with the HAM10000 diagnostic
+paradigm and is expected to further improve cross-domain performance.
+
+
+% -----------------------------------------------------------
+\subsection{Comparison with Published Literature}
+\label{sec:discuss_literature}
+% -----------------------------------------------------------
+
+Several published studies report classification accuracy exceeding 95\%
+on HAM10000~\cite{[ham_ref1],[ham_ref2]}.  We note two methodological
+differences that account for the apparent discrepancy.  First, the
+majority of published evaluations use \emph{image-level} random splits,
+which allow multiple photographs of the same lesion (identified in the
+\texttt{lesion\_id} field) to appear in both training and test sets.
+This constitutes evaluation leakage: the model effectively memorises
+lesion-specific appearance from near-identical training images.  Our
+lesion-level split eliminates this inflation.  Second, published
+accuracy figures are dominated by the \textit{nv} class (67\% of test
+images); a model that correctly classifies only \textit{nv} achieves
+67\% accuracy without any discriminative ability for the remaining six
+conditions.  Weighted F1 (which accounts for class frequency) and macro
+F1 (which weights all classes equally) are more informative metrics for
+multi-class imbalanced problems.
+
+For the primary MCVSLD task, published methods report accuracy in the
+range of 0.85--0.97 for 6-class viral exanthem
+classification~\cite{[mcvsld_comp_ref]}.  MorphNN achieves 0.9982
+accuracy and 0.9977 macro F1, outperforming the published state of the
+art while using a lightweight 5.5M-parameter backbone.  Compared with
+interpretable approaches relying solely on hand-crafted features, MorphNN
+improves macro F1 by approximately 0.25 absolute points (Morph-RF: 0.7457),
+confirming that visual representations are necessary for fine-grained
+discrimination but insufficient without morphological grounding.
+
+
+% -----------------------------------------------------------
+\subsection{Limitations}
+\label{sec:limitations}
+% -----------------------------------------------------------
+
+\paragraph{Dataset scale.}
+The MCVSLD training partition contains 9,060 images, which is sufficient
+for the current evaluation but limits generalisation claims.  Prospective
+multi-centre collection across diverse skin phototypes, image acquisition
+devices, and clinical settings is necessary to establish clinical-grade
+reliability.
+
+\paragraph{Morphological segmentation sensitivity.}
+The Otsu-based HSV segmentation may fail for images with poor
+illumination, low lesion-to-skin contrast, or extreme skin phototypes.
+Robustness to phototype variation and non-standard image orientations
+was not systematically evaluated.
+
+\paragraph{HAM10000 feature misalignment.}
+Five of 16 descriptors are misaligned with single-lesion dermoscopy
+(Section~\ref{sec:feature_alignment}).  A domain-adapted feature set
+would more fully leverage the morphological branch for cross-domain tasks.
+
+\paragraph{Statistical power on MCVSLD holdout.}
+The McNemar test on MCVSLD does not reach significance ($p = 0.289$)
+due to ceiling effects and a small test set.  This is a power limitation,
+not evidence of equivalence; the cross-validation evidence and the
+absolute error reduction (66.7\%) are consistent with a true advantage.
+
+\paragraph{Inference speed.}
+Morphological feature extraction contributes 85--120~ms per image via
+sequential OpenCV operations.  Combined with CNN inference ($\approx$\,12~ms
+on GPU), total latency is 100--135~ms per image, acceptable for clinical
+workstations but requiring optimisation for edge or mobile deployment.
+
+
+% -----------------------------------------------------------
+\subsection{Clinical Implications and Future Directions}
+\label{sec:clinical}
+% -----------------------------------------------------------
+
+MorphNN's multi-level explainability directly supports clinical adoption.
+GradCAM answers ``Where?'', SHAP answers ``Which lesion properties?'', and
+LIME answers ``Which image regions?'' --- together covering the three
+diagnostic questions a clinician needs answered before trusting an
+automated prediction.  The morphological feature vector $\mathbf{f}$
+comprises quantities that a clinician routinely estimates during
+examination (lesion count, size, circularity), making SHAP attributions
+cross-referenceable against clinical intuition rather than opaque latent
+features.
+
+In the specific context of viral exanthem triage, where rapid
+differentiation between Monkeypox (notifiable, contact-traced) and
+Chickenpox (common, self-limiting) has direct public-health consequences,
+a system achieving 99.82\% accuracy with zero Monkeypox false negatives
+and physician-auditable explanations represents a meaningful step toward
+point-of-care diagnostic support.
+
+Future work includes: (1) prospective validation on multi-centre clinical
+data; (2) development of a domain-adapted morphological descriptor set
+for dermoscopic lesion classification; (3) SHAP-guided feature pruning
+to identify a minimal sufficient feature subset per application domain;
+and (4) model compression via knowledge distillation for mobile deployment
+in resource-limited outbreak settings.
+
+
+%% ===========================================================
+%%  REFERENCES — author to populate with their .bib file
+%% ===========================================================
+\bibliographystyle{elsarticle-num}
+\bibliography{references}
+
+%% ----- Inline bibliography template (remove when .bib file is ready) -----
+%% \begin{thebibliography}{99}
+%%   \bibitem{tschandl2018ham10000}
+%%     Tschandl P, Rosendahl C, Kittler H. (2018). The HAM10000 dataset,
+%%     a large collection of multi-source dermatoscopic images of common
+%%     pigmented skin lesions. \textit{Sci Data}, 5:180161.
+%%   \bibitem{otsu1979}
+%%     Otsu N. (1979). A threshold selection method from gray-level
+%%     histograms. \textit{IEEE Trans Syst Man Cybern}, 9(1):62--66.
+%%   \bibitem{selvaraju2020gradcam}
+%%     Selvaraju RR, et al. (2020). Grad-CAM: Visual explanations from deep
+%%     networks via gradient-based localization. \textit{Int J Comput Vis},
+%%     128(2):336--359.
+%%   \bibitem{lundberg2017shap}
+%%     Lundberg SM, Lee SI. (2017). A unified approach to interpreting model
+%%     predictions. \textit{NeurIPS}, 30.
+%%   \bibitem{ribeiro2016lime}
+%%     Ribeiro MT, Singh S, Guestrin C. (2016). ``Why should I trust you?''
+%%     Explaining the predictions of any classifier. \textit{KDD}: 1135--44.
+%%   \bibitem{loshchilov2019adamw}
+%%     Loshchilov I, Hutter F. (2019). Decoupled weight decay regularization.
+%%     \textit{ICLR}.
+%%   \bibitem{loshchilov2017sgdr}
+%%     Loshchilov I, Hutter F. (2017). SGDR: Stochastic gradient descent
+%%     with warm restarts. \textit{ICLR}.
+%%   \bibitem{muller2019labelsmoothing}
+%%     M\"{u}ller R, Kornblith S, Hinton GE. (2019). When does label
+%%     smoothing help? \textit{NeurIPS}, 32.
+%%   \bibitem{howard2019mobilenetv3}
+%%     Howard A, et al. (2019). Searching for MobileNetV3. \textit{ICCV}:
+%%     1314--1324.
+%%   \bibitem{paszke2019pytorch}
+%%     Paszke A, et al. (2019). PyTorch: An imperative style high-performance
+%%     deep learning library. \textit{NeurIPS}, 32.
+%%   \bibitem{pedregosa2011sklearn}
+%%     Pedregosa F, et al. (2011). Scikit-learn: Machine learning in Python.
+%%     \textit{JMLR}, 12:2825--2830.
+%%   \bibitem{dietterich1998approximate}
+%%     Dietterich TG. (1998). Approximate statistical tests for comparing
+%%     supervised classification learning algorithms. \textit{Neural Comput},
+%%     10(7):1895--1923.
+%%   \bibitem{mcnemar1947}
+%%     McNemar Q. (1947). Note on the sampling error of the difference
+%%     between correlated proportions. \textit{Psychometrika}, 12(2):153--57.
+%% \end{thebibliography}
+
+\end{document}

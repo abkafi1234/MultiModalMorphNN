@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C02_pca256_rf,0.9193,0.0059,"[0.9178,0.9209]",0.8973,105,1134,W p=<0.001 *

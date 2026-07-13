@@ -1,0 +1,14 @@
+Config: C19_ft_v3_20epochs_lr1e4
+
+              precision    recall  f1-score   support
+
+  Chickenpox     1.0000    0.9912    0.9956       113
+      Cowpox     0.9899    0.9899    0.9899        99
+        HFMD     0.9918    0.9959    0.9938       242
+     Healthy     0.9884    0.9942    0.9913       171
+     Measles     1.0000    0.9759    0.9878        83
+   Monkeypox     0.9953    0.9977    0.9965       426
+
+    accuracy                         0.9938      1134
+   macro avg     0.9942    0.9908    0.9925      1134
+weighted avg     0.9938    0.9938    0.9938      1134

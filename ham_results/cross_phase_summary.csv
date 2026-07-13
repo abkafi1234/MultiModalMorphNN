@@ -1,0 +1,5 @@
+Phase,Holdout_MacroF1,Errors,N_test
+Phase 1 — Morphology-only RF,0.3792,751,1995
+Phase 2 — Best frozen backbone,0.5008,611,1995
+Phase 3 — Best fine-tuned CNN,0.654,384,1995
+Phase 4 — MorphNN (MobileNetV2+RF),0.4352,625,1995

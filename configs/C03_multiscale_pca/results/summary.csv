@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C03_multiscale_pca,0.9445,0.0053,"[0.9430,0.9459]",0.9233,73,1134,W p=<0.001 *

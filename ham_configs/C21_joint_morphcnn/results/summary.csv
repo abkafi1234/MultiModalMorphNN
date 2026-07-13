@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_RF_baseline
+C21_joint_morphcnn_HAM,0.9793,0.0019,"[0.9783,0.9802]",0.6941,330,1995,MWU p=<0.001*

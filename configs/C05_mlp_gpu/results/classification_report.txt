@@ -1,0 +1,14 @@
+Config: C05_mlp_gpu
+
+              precision    recall  f1-score   support
+
+  Chickenpox     0.8750    0.9292    0.9013       113
+      Cowpox     0.9510    0.9798    0.9652        99
+        HFMD     0.9438    0.9711    0.9572       242
+     Healthy     0.9249    0.9357    0.9302       171
+     Measles     0.9259    0.9036    0.9146        83
+   Monkeypox     0.9682    0.9296    0.9485       426
+
+    accuracy                         0.9418      1134
+   macro avg     0.9315    0.9415    0.9362      1134
+weighted avg     0.9426    0.9418    0.9419      1134

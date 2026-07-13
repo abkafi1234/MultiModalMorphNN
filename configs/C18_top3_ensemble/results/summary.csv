@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C18_top3_ensemble_hard_vote(C15+C16),0.9862,0.0037,"[0.9832,0.9892]",0.9892,9,1134,MWU p=<0.001 *

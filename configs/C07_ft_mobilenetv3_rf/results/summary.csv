@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C07_ft_mobilenetv3_rf,0.9821,0.0024,"[0.9810,0.9833]",0.9805,19,1134,MWU p=<0.001 *

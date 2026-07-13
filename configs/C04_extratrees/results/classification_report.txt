@@ -1,0 +1,14 @@
+Config: C04_extratrees
+
+              precision    recall  f1-score   support
+
+  Chickenpox     0.8750    0.8673    0.8711       113
+      Cowpox     0.9574    0.9091    0.9326        99
+        HFMD     0.9454    0.9298    0.9375       242
+     Healthy     0.9500    0.8889    0.9184       171
+     Measles     0.9296    0.7952    0.8571        83
+   Monkeypox     0.9041    0.9742    0.9379       426
+
+    accuracy                         0.9224      1134
+   macro avg     0.9269    0.8941    0.9091      1134
+weighted avg     0.9235    0.9224    0.9218      1134

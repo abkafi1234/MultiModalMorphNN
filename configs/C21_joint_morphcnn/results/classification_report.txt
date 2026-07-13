@@ -1,0 +1,14 @@
+Config: C21_joint_morphcnn
+
+              precision    recall  f1-score   support
+
+  Chickenpox     1.0000    0.9912    0.9956       113
+      Cowpox     1.0000    0.9899    0.9949        99
+        HFMD     1.0000    1.0000    1.0000       242
+     Healthy     0.9942    1.0000    0.9971       171
+     Measles     1.0000    1.0000    1.0000        83
+   Monkeypox     0.9977    1.0000    0.9988       426
+
+    accuracy                         0.9982      1134
+   macro avg     0.9986    0.9968    0.9977      1134
+weighted avg     0.9982    0.9982    0.9982      1134

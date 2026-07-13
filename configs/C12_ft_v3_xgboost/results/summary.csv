@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C12_ft_v3_xgboost,0.9809,0.0027,"[0.9796,0.9822]",0.9748,22,1134,MWU p=<0.001 *

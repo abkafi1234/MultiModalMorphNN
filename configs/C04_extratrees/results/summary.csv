@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C04_extratrees,0.9332,0.0043,"[0.9320,0.9343]",0.9091,88,1134,W p=<0.001 *

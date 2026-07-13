@@ -1,0 +1,16 @@
+Config: MorphNN_HAM_11feat
+N_morph_features: 11
+
+              precision    recall  f1-score   support
+
+       akiec     0.6032    0.6129    0.6080        62
+         bcc     0.7634    0.7100    0.7358       100
+         bkl     0.7194    0.6468    0.6812       218
+          df     0.7368    0.5000    0.5957        28
+         mel     0.5789    0.5046    0.5392       218
+          nv     0.8834    0.9289    0.9056      1337
+        vasc     0.8571    0.7500    0.8000        32
+
+    accuracy                         0.8221      1995
+   macro avg     0.7346    0.6647    0.6951      1995
+weighted avg     0.8150    0.8221    0.8172      1995

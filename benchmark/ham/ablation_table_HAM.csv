@@ -1,0 +1,6 @@
+Component,Holdout_F1,Beats_CNN
+Phase 1 Morph-only RF,0.3792,no
+Phase 2 Frozen CNN + Morph,0.5008,no
+Phase 4 Original MorphNN,0.4352,no
+Phase 3 Fine-tuned CNN alone,0.654000896367057,no
+C21 Joint MorphCNN (Ours),0.694101851264282,YES

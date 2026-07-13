@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C13_ft_v3_nopca_rf,0.9828,0.0027,"[0.9816,0.9842]",0.978,21,1134,MWU p=<0.001 *

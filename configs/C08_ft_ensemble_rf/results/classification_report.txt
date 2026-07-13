@@ -1,0 +1,14 @@
+Config: C08_ft_ensemble_rf
+
+              precision    recall  f1-score   support
+
+  Chickenpox     0.9554    0.9469    0.9511       113
+      Cowpox     0.9897    0.9697    0.9796        99
+        HFMD     0.9958    0.9876    0.9917       242
+     Healthy     0.9659    0.9942    0.9798       171
+     Measles     0.9877    0.9639    0.9756        83
+   Monkeypox     0.9813    0.9859    0.9836       426
+
+    accuracy                         0.9806      1134
+   macro avg     0.9793    0.9747    0.9769      1134
+weighted avg     0.9807    0.9806    0.9806      1134

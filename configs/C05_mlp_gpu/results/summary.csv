@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C05_mlp_gpu,0.9547,0.0033,"[0.9538,0.9556]",0.9362,66,1134,W p=<0.001 *

@@ -1,0 +1,14 @@
+Config: C11_ft_v3_pca128_rf
+
+              precision    recall  f1-score   support
+
+  Chickenpox     0.9909    0.9646    0.9776       113
+      Cowpox     0.9798    0.9798    0.9798        99
+        HFMD     0.9959    0.9917    0.9938       242
+     Healthy     0.9881    0.9708    0.9794       171
+     Measles     0.9643    0.9759    0.9701        83
+   Monkeypox     0.9838    0.9977    0.9907       426
+
+    accuracy                         0.9859      1134
+   macro avg     0.9838    0.9801    0.9819      1134
+weighted avg     0.9859    0.9859    0.9859      1134

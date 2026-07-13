@@ -1,0 +1,8 @@
+Component,Description,Holdout_F1,Delta_vs_prev,Beats_CNN
+Phase 1 Morph-only RF,Morphological features only,0.7457,-,no
+Phase 2 Frozen CNN + Morph,+ Frozen ImageNet CNN,0.8951,+0.1494,no
+Phase 4 Original MorphNN,+ Hybrid (frozen CNN),0.8324,-0.0627,no
+Phase 3 Fine-tuned CNN alone,Fine-tuned CNN (no morph),0.9946,+0.1622,no
+"MorphNN + FT CNN (C16, 15 ep)",+ Fine-tuned CNN hybrid,0.9901,-0.0045,no
+"MorphNN + FT CNN (C20, EffB3)",+ Larger backbone (B3),0.9926,+0.0025,no
+C21 Joint MorphCNN (Ours),End-to-end joint training,0.9977,+0.0051,YES

@@ -1,0 +1,2 @@
+Config,N_morph_features,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Holdout_WeightedF1,Holdout_Accuracy,Errors,N_test,ErrorRate_pct
+MorphNN_HAM_11feat,11,0.9797,0.0022,"[0.9786,0.9808]",0.6951,0.8172,0.8221,355,1995,17.79

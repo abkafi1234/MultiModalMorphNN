@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C19_ft_v3_20epochs_lr1e4,0.9941,0.0016,"[0.9933,0.9949]",0.9925,7,1134,MWU p=<0.001 *

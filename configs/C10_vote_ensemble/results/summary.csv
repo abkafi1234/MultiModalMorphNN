@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C10_vote_ensemble,0.9788,0.0047,"[0.9748,0.9829]",0.9804,18,1134,MWU p=<0.001 *

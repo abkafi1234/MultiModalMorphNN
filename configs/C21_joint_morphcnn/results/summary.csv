@@ -1,0 +1,2 @@
+Config,CV_MacroF1,CV_Std,CI95,Holdout_MacroF1,Errors,N_test,vs_PhaseRF_baseline
+C21_joint_morphcnn,0.9953,0.0012,"[0.9948,0.9959]",0.9977,2,1134,MWU p=<0.001 *

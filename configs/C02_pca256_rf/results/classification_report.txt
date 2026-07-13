@@ -1,0 +1,14 @@
+Config: C02_pca256_rf
+
+              precision    recall  f1-score   support
+
+  Chickenpox     0.7786    0.9027    0.8361       113
+      Cowpox     0.9192    0.9192    0.9192        99
+        HFMD     0.9163    0.9504    0.9331       242
+     Healthy     0.8988    0.8830    0.8909       171
+     Measles     0.9577    0.8193    0.8831        83
+   Monkeypox     0.9348    0.9085    0.9214       426
+
+    accuracy                         0.9074      1134
+   macro avg     0.9009    0.8972    0.8973      1134
+weighted avg     0.9102    0.9074    0.9078      1134

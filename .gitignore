@@ -1,0 +1,26 @@
+# Raw datasets (large, not needed in repo)
+Dataset/
+Ham Dataset/
+
+# Feature/embedding caches (regenerable from datasets)
+ham_cache/
+morphnn_cache/
+
+# Large trained-model / pipeline artifacts
+saved_model/*.pth
+saved_model/*.pkl
+ham_saved_model/
+morphnn_results/morphnn_primary_pipeline.pkl
+ham_results/morphnn_primary_pipeline.pkl
+
+# Raw sample images used for explainability figures (large originals)
+hfmd.tif
+Figures/Gradcam/*.tif
+Figures/Shap/*.tif
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
